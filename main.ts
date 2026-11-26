@@ -1,40 +1,69 @@
-// Fortune Cookie Funnies for Engineers (Node 22, standard library only):
-// writes a single fortune cookie message for a software engineer to
-// /output/entry.txt.
+// Fortune Cookie Funnies for Engineers — Node 22, standard library only.
+// Produces one fortune-cookie line aimed at a software engineer and saves
+// it as /output/entry.txt.
 //
-// Design: a fortune-cookie declarative with the twist drawn from the
-// engineer's world — an old bug coming back, now promoted and blamed on
-// its author. The funniest word sits at the end. Original, single line,
-// English, well under the 120-character cap.
+// The joke: a fortune-cookie prediction whose twist comes straight out of
+// an engineer's working life — a stale bug resurfaces, only now it has
+// been promoted, written up, and pinned on the person who wrote it. The
+// punch word lands last. It is original, one line, in English, and far
+// shorter than the 120-character ceiling.
 //
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
+// When run outside the grader's container, MAKEFUN_OUTPUT_DIR takes the
+// place of /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 //
-// Deterministic: no network, no randomness, no time or environment input.
-// Both runs write identical bytes.
+// Fully deterministic: no network calls, no randomness, and nothing read
+// from the clock or the environment besides the output directory. Every
+// run therefore writes exactly the same bytes.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const LINE =
+const ONE_LINER =
   'A bug you wrote in 2021 will come back tomorrow — promoted, documented, and blamed on you.';
 
-// The sealed scorer only accepts MIN_ENTRY_CHARS–MAX_ENTRY_CHARS UTF-8
-// characters, not only whitespace: fail loudly here instead of writing an
-// entry the judge would never see.
-const MIN_ENTRY_CHARS = 1;
-const MAX_ENTRY_CHARS = 120;
+// The sealed scorer only counts entries whose UTF-8 length falls inside
+// this closed interval, and rejects blank-only text. We enforce the same
+// bounds up front and fail loudly, rather than writing an entry that the
+// judge would discard unseen.
+const MIN_LENGTH = 1;
+const MAX_LENGTH = 120;
 
-if (
-  LINE.length < MIN_ENTRY_CHARS ||
-  LINE.length > MAX_ENTRY_CHARS ||
-  LINE.trim().length === 0
-) {
-  throw new Error(
-    `entry line must be ${MIN_ENTRY_CHARS}-${MAX_ENTRY_CHARS} characters, got ${LINE.length}`,
-  );
+function checkNotEmpty(text: string): void {
+  if (text.trim().length === 0) {
+    throw new Error('entry line must not be empty or whitespace only');
+  }
 }
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, 'entry.txt'), LINE + '\n', 'utf8');
+function checkWithinLimit(text: string, floor: number, ceiling: number): void {
+  if (text.length < floor || text.length > ceiling) {
+    throw new Error(
+      `entry line must be ${floor}-${ceiling} characters, got ${text.length}`,
+    );
+  }
+}
+
+function checkCleanEdges(text: string): void {
+  if (text !== text.trim()) {
+    throw new Error('entry line must not start or end with whitespace');
+  }
+}
+
+function validateEntry(text: string): void {
+  checkNotEmpty(text);
+  checkWithinLimit(text, MIN_LENGTH, MAX_LENGTH);
+  checkCleanEdges(text);
+}
+
+function writeEntry(text: string, destinationDir: string): void {
+  mkdirSync(destinationDir, { recursive: true });
+  writeFileSync(join(destinationDir, 'entry.txt'), text + '\n', 'utf8');
+}
+
+function main(): void {
+  validateEntry(ONE_LINER);
+  const destinationDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+  writeEntry(ONE_LINER, destinationDir);
+}
+
+main();
